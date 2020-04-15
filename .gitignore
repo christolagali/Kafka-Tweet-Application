@@ -27,4 +27,4 @@ someOtherfoler/
 *.tar
 *.zip
 
-/config
+config/

@@ -1,4 +1,4 @@
-from tweepy import StreamListener,Stream,OAuthHandler
+import tweepy
 from kafka import KafkaProducer
 
 import threading
@@ -7,36 +7,30 @@ import time
 import json
 
 
-class TweetListener(StreamListener):
+class tweetlistener(tweepy.StreamListener):
+    # This is a class provided by tweepy to access the Twitter Streaming API.
 
-    def on_data(self,data):
-        #boto3.kinesis.connect_to_region('us-east-1')
-        
+    def on_connect(self):
+        # Called initially to connect to the Streaming API
+        print("You are now connected to the streaming API.")
+
+    def on_error(self, status_code):
+        # On error - if an error occurs, display the error / status code
+        print("Error received in kafka producer " + repr(status_code))
+        return True # Don't kill the stream
+
+    def on_data(self, data):
+        """ This method is called whenever new data arrives from live stream.
+        We asynchronously push this data to kafka queue"""
         try:
-            
-            producer = KafkaProducer(bootstrap_servers='localhost:9092',value_serializer=lambda v: json.dumps(v).encode('utf-8'))
-            
-            response = producer.send('new_tweet_topic',{"dataObjectID": data})
-            
-            print ("putting data")
-            logging.info(response)
-            return True
-        except Exception:
-            logging.exception("Problem pushing to kafka")
+            producer = KafkaProducer(bootstrap_servers=['localhost:9092'])
+            producer.send('my_twtopic', data.encode('utf-8'))
+        except Exception as e:
+            print(e)
+            return False
+        return True # Don't kill the stream
 
-    def on_error(self, status):
-        print (status)
-
-
-
-def produceTweet(auth):
-
-    try:
-
-        twitter_stream = Stream(auth, TweetListener())
-        twitter_stream.filter(track=["donald"])
-    
-    except Exception as e:
-        logging.exception(e)
+    def on_timeout(self):
+        return True # Don't kill the stream
 
 
